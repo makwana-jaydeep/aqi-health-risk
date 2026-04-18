@@ -1,0 +1,50 @@
+stages:
+  generate_data:
+    cmd: python ml/generate_data.py
+    deps:
+      - ml/generate_data.py
+      - params.yaml
+    params:
+      - data.raw_path
+      - data.n_samples
+    outs:
+      - data/raw/aqi_dataset.csv
+
+  preprocess:
+    cmd: python data_pipeline/scripts/preprocess.py
+    deps:
+      - data_pipeline/scripts/preprocess.py
+      - data_pipeline/scripts/feature_engineering.py
+      - data/raw/aqi_dataset.csv
+      - params.yaml
+    params:
+      - data.processed_path
+      - data.baseline_path
+    outs:
+      - data/processed/aqi_processed.csv
+      - data/baseline_stats.json
+
+  train:
+    cmd: python ml/train.py
+    deps:
+      - ml/train.py
+      - data/processed/aqi_processed.csv
+      - params.yaml
+    params:
+      - model
+    outs:
+      - data/model.pkl
+    metrics:
+      - data/metrics.json:
+          cache: false
+
+  evaluate:
+    cmd: python ml/evaluate.py
+    deps:
+      - ml/evaluate.py
+      - data/model.pkl
+      - data/processed/aqi_processed.csv
+      - params.yaml
+    metrics:
+      - data/eval_metrics.json:
+          cache: false

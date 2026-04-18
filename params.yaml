@@ -1,0 +1,17 @@
+data:
+  raw_path: data/raw
+  processed_path: data/processed
+  baseline_path: data/baseline_stats.json
+  n_samples: 15000
+
+model:
+  name: aqi_risk_classifier
+  n_estimators: 200
+  max_depth: 6
+  learning_rate: 0.1
+  random_state: 42
+  test_size: 0.2
+
+drift:
+  ks_threshold: 0.05
+  check_window_hours: 24
