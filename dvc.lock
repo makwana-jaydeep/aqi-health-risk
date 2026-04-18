@@ -1,0 +1,111 @@
+schema: '2.0'
+stages:
+  generate_data:
+    cmd: python ml/generate_data.py
+    deps:
+    - path: ml/generate_data.py
+      hash: md5
+      md5: 50769740774e93e63f9bbae530d742f0
+      size: 3725
+    - path: params.yaml
+      hash: md5
+      md5: fd2001d3405c2fc221894109b75d2b52
+      size: 303
+    params:
+      params.yaml:
+        data.n_samples: 15000
+        data.raw_path: data/raw
+    outs:
+    - path: data/raw/aqi_dataset.csv
+      hash: md5
+      md5: ebab95b757f050e2d5a685d8e091300c
+      size: 902925
+  preprocess:
+    cmd: python data_pipeline/scripts/preprocess.py
+    deps:
+    - path: data/raw/aqi_dataset.csv
+      hash: md5
+      md5: ebab95b757f050e2d5a685d8e091300c
+      size: 902925
+    - path: data_pipeline/scripts/feature_engineering.py
+      hash: md5
+      md5: 7bfb852a2b1bc7ecab50118677310a1d
+      size: 914
+    - path: data_pipeline/scripts/preprocess.py
+      hash: md5
+      md5: c8275a2b198bf40493edc28d46e71d0d
+      size: 1943
+    - path: params.yaml
+      hash: md5
+      md5: fd2001d3405c2fc221894109b75d2b52
+      size: 303
+    params:
+      params.yaml:
+        data.baseline_path: data/baseline_stats.json
+        data.processed_path: data/processed
+    outs:
+    - path: data/baseline_stats.json
+      hash: md5
+      md5: ad125d347eb004f256ae9982611a4878
+      size: 100585
+    - path: data/processed/aqi_processed.csv
+      hash: md5
+      md5: 67f65cc7ad74a850fccd094dc65feb64
+      size: 1163774
+  train:
+    cmd: python ml/train.py
+    deps:
+    - path: data/processed/aqi_processed.csv
+      hash: md5
+      md5: 67f65cc7ad74a850fccd094dc65feb64
+      size: 1163774
+    - path: ml/train.py
+      hash: md5
+      md5: f887a989ffb50c408c75f008ae880ba5
+      size: 4363
+    - path: params.yaml
+      hash: md5
+      md5: fd2001d3405c2fc221894109b75d2b52
+      size: 303
+    params:
+      params.yaml:
+        model:
+          name: aqi_risk_classifier
+          n_estimators: 200
+          max_depth: 6
+          learning_rate: 0.1
+          random_state: 42
+          test_size: 0.2
+    outs:
+    - path: data/metrics.json
+      hash: md5
+      md5: 0b98db53972413513e915649018aaf88
+      size: 155
+    - path: data/model.pkl
+      hash: md5
+      md5: 0444724410ee7901db11c78c23f07680
+      size: 5532691
+  evaluate:
+    cmd: python ml/evaluate.py
+    deps:
+    - path: data/model.pkl
+      hash: md5
+      md5: 0444724410ee7901db11c78c23f07680
+      size: 5532691
+    - path: data/processed/aqi_processed.csv
+      hash: md5
+      md5: 67f65cc7ad74a850fccd094dc65feb64
+      size: 1163774
+    - path: ml/evaluate.py
+      hash: md5
+      md5: 91357a1a72b6caf8fe74f1101b0f3e98
+      size: 2297
+    - path: params.yaml
+      hash: md5
+      md5: fd2001d3405c2fc221894109b75d2b52
+      size: 303
+    outs:
+    - path: data/eval_metrics.json
+      hash: md5
+      md5: c0faeea798feb0b141eeaaa3152336f5
+      size: 1143
