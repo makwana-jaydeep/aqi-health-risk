@@ -3,7 +3,8 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ curl && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir apache-airflow==2.9.0 \
+RUN pip install --no-cache-dir \
+    apache-airflow[postgres]==2.9.0 \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.0/constraints-3.11.txt"
 
 RUN pip install --no-cache-dir \

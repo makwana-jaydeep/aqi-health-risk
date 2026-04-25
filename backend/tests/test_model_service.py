@@ -10,7 +10,7 @@ from models.schemas import (
 )
 from services.model_service import ModelService, _build_features
 
-
+# methods to check model api working 
 def make_request(**kwargs) -> PredictionRequest:
     defaults = dict(
         city="Delhi",

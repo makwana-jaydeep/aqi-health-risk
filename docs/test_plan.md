@@ -62,10 +62,12 @@ the full user journey from input to recommendation display.
 | TC-U18| /ready returns 200 with bool flags          | 200 + bool fields    |
 | TC-U19| /metrics returns 200                        | 200 + text/plain     |
 | TC-U20| /predict valid payload returns 200          | 200 + risk_tier      |
-| TC-U21| /predict aqi>500 returns 422               | 422 validation error |
+| TC-U21| /predict aqi>500 returns 422                | 422 validation error |
 | TC-U22| /predict missing city returns 422           | 422 validation error |
 | TC-U23| /predict recommendation non-empty           | len > 0              |
 | TC-U24| /pipeline/status returns 200                | 200 + drift fields   |
+| TC-U25| /feedback logs ground truth record          | 200 + status logged  |
+| TC-U26| /feedback with invalid risk value returns 422 | 422                |
 
 ### Integration
 | ID    | Description                                 | Expected Result      |
@@ -88,6 +90,8 @@ the full user journey from input to recommendation display.
 | AC6 | DVC repro runs end-to-end from clean state             | Exit code 0      |
 | AC7 | All unit tests pass                                    | 0 failures       |
 | AC8 | All Docker services start and pass health checks       | All healthy      |
+| AC9 | Rollback script transitions model version in MLflow | Stage = Production |
+| AC10| Feedback endpoint appends to feedback_log.jsonl    | File grows on POST |
 
 ## 5. Running the Test Suite
 

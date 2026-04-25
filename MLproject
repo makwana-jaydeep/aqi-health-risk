@@ -1,7 +1,5 @@
 name: aqi-health-risk
 
-python_env: python_env.yaml
-
 entry_points:
   main:
     parameters:

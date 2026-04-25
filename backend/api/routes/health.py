@@ -10,7 +10,7 @@ from services.model_service import ModelService
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
+# to get health advice
 @router.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(
@@ -19,7 +19,7 @@ def health() -> HealthResponse:
         version=settings.app_version,
     )
 
-
+# to get advice according to aqi
 @router.get("/ready", response_model=ReadyResponse)
 def ready() -> ReadyResponse:
     model_loaded = ModelService.is_loaded()

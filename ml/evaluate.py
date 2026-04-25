@@ -22,7 +22,7 @@ FEATURE_COLUMNS = [
     "age_group_enc", "has_asthma", "has_heart_condition", "planned_activity_enc",
 ]
 
-
+# main method for evalution of the model
 def main() -> None:
     with open("params.yaml") as f:
         params = yaml.safe_load(f)

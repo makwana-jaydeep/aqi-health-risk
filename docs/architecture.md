@@ -81,6 +81,10 @@ A REST API service that:
 The backend enforces strict input validation via Pydantic and implements comprehensive
 exception handling with structured logging.
 
+The backend also exposes POST /api/v1/feedback for logging ground truth labels
+as they become available. Records are written to feedback_log.jsonl for
+periodic performance decay analysis.
+
 ### 3.3 ML Model
 A GradientBoostingClassifier trained via scikit-learn. The pipeline includes a
 StandardScaler followed by the classifier. The model is serialized with joblib and
@@ -134,6 +138,10 @@ Running `dvc repro` from a clean state fully reproduces the pipeline end to end.
 8. Frontend sends a POST request to the backend.
 9. Backend runs inference and returns the risk tier.
 10. Prometheus records the prediction. Grafana visualizes it.
+11. User optionally submits actual outcome via POST /api/v1/feedback.
+12. Feedback records accumulate in feedback_log.jsonl for drift and decay analysis.
+13. If model performance degrades, scripts/rollback.sh transitions a previous
+    MLflow model version back to Production.
 
 ## 5. Design Decisions
 

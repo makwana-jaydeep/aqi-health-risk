@@ -13,7 +13,7 @@ from services.model_service import ModelService
 setup_logging()
 logger = logging.getLogger(__name__)
 
-
+# synchrponization
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AQI Health Risk API starting")

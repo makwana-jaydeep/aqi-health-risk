@@ -69,6 +69,24 @@ dvc metrics show   # Display model metrics
 cd backend && python -m pytest tests/ -v --tb=short
 python -m pytest tests/ -v --tb=short
 ```
+## MLproject — Reproducible Training
+
+Run training as an MLflow project (links Git commit to experiment run):
+
+```bash
+mlflow run . -e main --env-manager=local
+```
+
+## Rollback a Model Version
+
+If a deployed model needs to be rolled back:
+
+```bash
+./scripts/rollback.sh <version_number>
+docker compose restart backend
+```
+
+Check available versions at http://localhost:5000 under Models.
 
 ## Documentation
 

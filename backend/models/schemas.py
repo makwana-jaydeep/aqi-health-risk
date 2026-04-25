@@ -1,7 +1,7 @@
 from enum import Enum
 from pydantic import BaseModel, Field
 
-
+# diffrent classes based on age , activity and Risk 
 class AgeGroup(str, Enum):
     child = "child"
     teen = "teen"

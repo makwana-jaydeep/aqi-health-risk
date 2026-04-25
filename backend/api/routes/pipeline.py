@@ -10,7 +10,7 @@ from services.prometheus_service import PREDICTION_COUNTER
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
+# to get the details of full pipeline
 @router.get("/pipeline/status", response_model=PipelineStatusResponse)
 def pipeline_status() -> PipelineStatusResponse:
     drift_result = DriftService.get_latest_drift_status()

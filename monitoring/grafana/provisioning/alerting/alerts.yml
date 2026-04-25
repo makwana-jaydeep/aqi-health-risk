@@ -1,0 +1,111 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: aqi-email-alerts
+    receivers:
+      - uid: aqi-email-receiver
+        type: email
+        settings:
+          addresses: da25m013@smail.iitm.ac.in
+          singleEmail: false
+        disableResolveMessage: false
+
+policies:
+  - orgId: 1
+    receiver: aqi-email-alerts
+    group_by: [alertname]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+
+groups:
+  - orgId: 1
+    name: AQI Alerts
+    folder: AQI
+    interval: 1m
+    rules:
+
+      - uid: aqi-drift-alert
+        title: Data Drift Detected
+        condition: C
+        data:
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: aqi_drift_score
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [0.05]
+                    type: gt
+                  operator:
+                    type: and
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: NoData
+        execErrState: Error
+        for: 0m
+        annotations:
+          summary: "Data drift detected - KS score above 0.05"
+        labels:
+          severity: warning
+        notification_settings:
+          receiver: aqi-email-alerts
+        isPaused: false
+
+      - uid: aqi-no-predictions-alert
+        title: No Predictions Received
+        condition: C
+        data:
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: increase(aqi_predictions_total[10m])
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: Alerting
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "No predictions in last 10 minutes - backend may be down"
+        labels:
+          severity: warning
+        notification_settings:
+          receiver: aqi-email-alerts
+        isPaused: false

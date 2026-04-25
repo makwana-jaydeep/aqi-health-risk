@@ -18,7 +18,7 @@ DEFAULT_ARGS = {
     "retry_delay": timedelta(minutes=5),
     "email_on_failure": False,
 }
-
+# DAG strucuture to get the data and process it
 with DAG(
     dag_id="cpcb_data_ingestion",
     default_args=DEFAULT_ARGS,
@@ -30,6 +30,8 @@ with DAG(
 ) as dag:
 
     def task_fetch_data(**context) -> str:
+        import sys
+        sys.path.insert(0, "/opt/airflow/scripts")
         from ingest_cpcb import ingest
         output_path = ingest(output_dir="/data/raw")
         context["ti"].xcom_push(key="raw_path", value=output_path)
@@ -58,35 +60,80 @@ with DAG(
         return True
 
     def task_preprocess(**context) -> None:
-        import pandas as pd
         import sys
+        import os
         sys.path.insert(0, "/opt/airflow/scripts")
-        sys.path.insert(0, "/opt/airflow")
-        from preprocess import main
-        main()
+        os.chdir("/opt/airflow")
+
+        import pandas as pd
+        import numpy as np
+
+        raw_path = "/data/raw"
+        processed_dir = "/data/processed"
+        baseline_path = "/data/baseline_stats.json"
+        os.makedirs(processed_dir, exist_ok=True)
+
+        import glob
+        csv_files = sorted(glob.glob(f"{raw_path}/*.csv"))
+        if not csv_files:
+            raise FileNotFoundError(f"No CSV files found in {raw_path}")
+
+        df = pd.read_csv(csv_files[-1])
+
+        from feature_engineering import engineer_features
+        df = df.dropna(subset=["aqi", "pm25", "pm10"])
+        df = df[df["aqi"].between(0, 500)]
+        df = engineer_features(df)
+
+        df.to_csv(f"{processed_dir}/aqi_processed.csv", index=False)
+
+        import json
+        from scipy import stats
+        baseline = {}
+        for feat in ["aqi", "pm25", "pm10", "no2", "temperature", "humidity", "wind_speed"]:
+            if feat in df.columns:
+                vals = df[feat].dropna().tolist()
+                baseline[feat] = {
+                    "mean": float(np.mean(vals)),
+                    "std": float(np.std(vals)),
+                    "samples": vals[:2000],
+                }
+        with open(baseline_path, "w") as f:
+            json.dump(baseline, f)
 
     def task_check_drift(**context) -> str:
         import json
         import os
-        import pandas as pd
         import sys
-        sys.path.insert(0, "/opt/airflow/scripts")
+        import numpy as np
+        import pandas as pd
+        from scipy import stats
 
         baseline_path = "/data/baseline_stats.json"
         processed_path = "/data/processed/aqi_processed.csv"
 
         if not os.path.exists(baseline_path):
-            logger.warning("Baseline not found, skipping drift check")
+            return "no_drift"
+        if not os.path.exists(processed_path):
             return "no_drift"
 
-        from drift_detection import detect_drift, CONTINUOUS_FEATURES
-        df = pd.read_csv(processed_path)
-        current = {f: df[f].tail(500).tolist() for f in CONTINUOUS_FEATURES if f in df.columns}
-        result = detect_drift(baseline_path, current)
+        with open(baseline_path) as f:
+            baseline = json.load(f)
 
-        if result["drift_detected"]:
-            logger.warning("Drift detected. Triggering retraining.")
-            return "drift_detected"
+        df = pd.read_csv(processed_path)
+        features = ["aqi", "pm25", "pm10", "no2", "temperature", "humidity", "wind_speed"]
+
+        for feat in features:
+            if feat not in baseline or feat not in df.columns:
+                continue
+            baseline_samples = np.array(baseline[feat]["samples"])
+            current_samples = df[feat].dropna().tail(500).values
+            if len(current_samples) < 10:
+                continue
+            _, p_value = stats.ks_2samp(baseline_samples, current_samples)
+            if p_value < 0.05:
+                return "drift_detected"
+
         return "no_drift"
 
     fetch = PythonOperator(

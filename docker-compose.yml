@@ -12,10 +12,11 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: "46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLt0nfdstY="
     MLFLOW_TRACKING_URI: http://mlflow:5000
   volumes:
-    - ./data_pipeline/dags:/opt/airflow/dags
-    - ./data_pipeline/scripts:/opt/airflow/scripts
-    - ./data:/data
-    - airflow_logs:/opt/airflow/logs
+      - ./data_pipeline/dags:/opt/airflow/dags
+      - ./data_pipeline/scripts:/opt/airflow/scripts
+      - ./data:/data
+      - ./params.yaml:/opt/airflow/params.yaml:ro
+      - airflow_logs:/opt/airflow/logs
   depends_on:
     postgres:
       condition: service_healthy
@@ -39,13 +40,7 @@ services:
     command: >
       bash -c "
         airflow db init &&
-        airflow users create
-          --username admin
-          --password admin
-          --firstname Admin
-          --lastname User
-          --role Admin
-          --email admin@aqi.local
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@aqi.local
       "
     restart: "no"
 
@@ -64,21 +59,18 @@ services:
       - airflow-init
 
   mlflow:
-    image: python:3.11-slim
+    image: ghcr.io/mlflow/mlflow:v2.16.2
     ports:
       - "5000:5000"
     volumes:
       - ./mlruns:/mlruns
       - ./mlartifacts:/mlartifacts
     command: >
-      bash -c "
-        pip install mlflow==2.11.1 -q &&
-        mlflow server
-          --host 0.0.0.0
-          --port 5000
-          --backend-store-uri /mlruns
-          --default-artifact-root /mlartifacts
-      "
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri /mlruns
+        --default-artifact-root /mlartifacts
 
   backend:
     build:
@@ -93,15 +85,12 @@ services:
       MODEL_PATH: /app/data/model.pkl
       BASELINE_PATH: /app/data/baseline_stats.json
       LOG_LEVEL: INFO
+      DATA_DIR: /app/data
     volumes:
+      - ./backend:/app          
       - ./data:/app/data
       - ./mlruns:/mlruns
       - ./mlartifacts:/mlartifacts
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   frontend:
     build:
@@ -120,6 +109,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus_rules.yml:/etc/prometheus/rules/aqi_alerts.yml:ro
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -139,6 +129,13 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: "smtp.gmail.com:587"
+      GF_SMTP_USER: "da25m013@smail.iitm.ac.in"
+      GF_SMTP_PASSWORD: "ikjrmmeqzndkldbg "
+      GF_SMTP_FROM_ADDRESS: "da25m013@smail.iitm.ac.in"
+      GF_SMTP_FROM_NAME: "AQI Health Risk Monitor"
+      GF_SMTP_STARTTLS_POLICY: "MandatoryStartTLS"
 
 volumes:
   postgres_data:

@@ -97,9 +97,30 @@ generate_data --> preprocess --> train --> evaluate
 | Monitoring | Prometheus    | Time-series metrics collection             |
 | Dashboard  | Grafana       | Visualization and alerting                 |
 | Versioning | DVC + Git     | Code, data, and model version control      |
-| Containers | Docker Compose| Environment parity across all services    |
+| Containers | Docker Compose| Environment parity across all services     |
 
-## 6. Security Considerations
+## 6. Rollback Strategy
+
+If a newly deployed model degrades performance, the rollback procedure is:
+
+1. Identify the last known good model version number in the MLflow model registry
+   at http://localhost:5000 under Models > aqi_risk_classifier.
+2. Run the rollback script:
+```bash
+   ./scripts/rollback.sh <version_number>
+```
+3. The script transitions the target version back to Production stage and archives
+   the current Production version.
+4. Restart the backend container to reload the model from the registry:
+```bash
+   docker compose restart backend
+```
+
+The rollback script uses the MLflow model registry stage transition API. Every
+version is permanently stored in the registry so any previous version can be
+restored at any time.
+
+## 7. Security Considerations
 
 - All sensitive data (CPCB API keys) are passed via environment variables, never hardcoded.
 - The backend does not log raw user input.

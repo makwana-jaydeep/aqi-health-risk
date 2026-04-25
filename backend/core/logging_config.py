@@ -2,7 +2,7 @@ import logging
 import sys
 from core.config import settings
 
-
+# to load config
 def setup_logging() -> None:
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
 

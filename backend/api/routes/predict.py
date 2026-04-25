@@ -1,8 +1,10 @@
 import logging
 import time
-
+import json
+import os
+from datetime import datetime
 from fastapi import APIRouter, HTTPException
-
+from pathlib import Path
 from models.schemas import PredictionRequest, PredictionResponse
 from services.model_service import ModelService
 from services.prometheus_service import (
@@ -22,7 +24,7 @@ RECOMMENDATIONS = {
                      "Keep windows closed and use an air purifier if available.",
 }
 
-
+# to do prediction
 @router.post("/predict", response_model=PredictionResponse)
 def predict(request: PredictionRequest) -> PredictionResponse:
     logger.info("Prediction request for city=%s aqi=%.1f", request.city, request.aqi)
@@ -52,3 +54,35 @@ def predict(request: PredictionRequest) -> PredictionResponse:
 
     result.recommendation = RECOMMENDATIONS[result.risk_tier]
     return result
+
+# check feedback
+@router.post("/feedback")
+def submit_feedback(city: str, actual_risk: int, predicted_risk: int):
+    if actual_risk not in (0, 1, 2) or predicted_risk not in (0, 1, 2):
+        raise HTTPException(status_code=422, detail="Risk values must be 0, 1, or 2")
+
+    record = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "city": city,
+        "actual_risk": actual_risk,
+        "predicted_risk": predicted_risk,
+        "correct": actual_risk == predicted_risk,
+    }
+
+
+    DATA_DIR = os.getenv("DATA_DIR", "data")  # fallback for local/testing
+    feedback_path = Path(DATA_DIR) / "feedback_log.jsonl"
+
+    try:
+        feedback_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(feedback_path, "a") as f:
+            f.write(json.dumps(record) + "\n")
+
+        logger.info("Feedback logged: predicted=%d actual=%d", predicted_risk, actual_risk)
+
+    except Exception as exc:
+        logger.error("Failed to write feedback: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to log feedback") from exc
+
+    return {"status": "logged"}

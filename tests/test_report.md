@@ -6,9 +6,9 @@
 
 | Category           | Total | Passed | Failed |
 |--------------------|-------|--------|--------|
-| Unit Tests         | 23    | 23     | 0      |
+| Unit Tests         | 25    | 25     | 0      |
 | Integration Tests  | 6     | 6      | 0      |
-| **Total**          | **29**| **29** | **0**  |
+| **Total**          | **31**| **31** | **0**  |
 
 ## Acceptance Criteria
 
@@ -66,6 +66,8 @@
 - TC-I04: Invalid AQI returns 422
 - TC-I05: Pipeline status endpoint returns data
 - TC-I06: Prometheus metrics endpoint accessible
+- TC-U25: /feedback returns 200 and logs record
+- TC-U26: /feedback with invalid body returns 422
 
 ## Test Environment
 

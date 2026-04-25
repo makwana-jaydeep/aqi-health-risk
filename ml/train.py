@@ -2,7 +2,6 @@ import argparse
 import json
 import logging
 import os
-import sys
 
 import joblib
 import mlflow
@@ -30,7 +29,7 @@ def load_params() -> dict:
     with open("params.yaml") as f:
         return yaml.safe_load(f)
 
-
+# parsing args
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--n-estimators", type=int, default=None)
@@ -39,7 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--random-state", type=int, default=None)
     return parser.parse_args()
 
-
+# main trining
 def main() -> None:
     params = load_params()
     args = parse_args()
@@ -68,58 +67,70 @@ def main() -> None:
 
     mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     mlflow.set_tracking_uri(mlflow_uri)
-    mlflow.set_experiment("aqi-risk-classification")
 
-    with mlflow.start_run() as run:
-        mlflow.log_params({
-            "n_estimators": n_estimators,
-            "max_depth": max_depth,
-            "learning_rate": learning_rate,
-            "random_state": random_state,
-            "test_size": test_size,
-            "train_samples": len(X_train),
-        })
+    # if mlflow run launched this script it will have injected an active run already
+    # if called directly via dvc repro or python ml/train.py we create our own run
+    if os.environ.get("MLFLOW_RUN_ID"):
+        # launched via mlflow run — run context already injected via env var
+        run = mlflow.start_run(run_id=os.environ["MLFLOW_RUN_ID"])
+    else:
+        # launched directly via dvc repro or python ml/train.py
+        mlflow.set_experiment("aqi-risk-classification")
+        run = mlflow.start_run()
 
-        pipeline = Pipeline([
-            ("scaler", StandardScaler()),
-            ("clf", GradientBoostingClassifier(
-                n_estimators=n_estimators,
-                max_depth=max_depth,
-                learning_rate=learning_rate,
-                random_state=random_state,
-            )),
-        ])
+    mlflow.log_params({
+        "n_estimators": n_estimators,
+        "max_depth": max_depth,
+        "learning_rate": learning_rate,
+        "random_state": random_state,
+        "test_size": test_size,
+        "train_samples": len(X_train),
+    })
 
-        logger.info("Training model n_estimators=%d max_depth=%d lr=%s", n_estimators, max_depth, learning_rate)
-        pipeline.fit(X_train, y_train)
+    pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", GradientBoostingClassifier(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            learning_rate=learning_rate,
+            random_state=random_state,
+        )),
+    ])
 
-        y_pred = pipeline.predict(X_test)
-        accuracy = float(accuracy_score(y_test, y_pred))
-        f1_macro = float(f1_score(y_test, y_pred, average="macro"))
-        f1_weighted = float(f1_score(y_test, y_pred, average="weighted"))
+    logger.info("Training model n_estimators=%d max_depth=%d lr=%s", n_estimators, max_depth, learning_rate)
+    pipeline.fit(X_train, y_train)
 
-        mlflow.log_metrics({
-            "accuracy": accuracy,
-            "f1_macro": f1_macro,
-            "f1_weighted": f1_weighted,
-        })
+    # log feature importances so we can track which features drive the model
+    for feat, imp in zip(FEATURE_COLUMNS, pipeline.named_steps["clf"].feature_importances_):
+        mlflow.log_metric(f"importance_{feat}", float(imp))
 
-        mlflow.sklearn.log_model(
-            pipeline,
-            artifact_path="model",
-            registered_model_name=model_params["name"],
-        )
+    y_pred = pipeline.predict(X_test)
+    accuracy = float(accuracy_score(y_test, y_pred))
+    f1_macro = float(f1_score(y_test, y_pred, average="macro"))
+    f1_weighted = float(f1_score(y_test, y_pred, average="weighted"))
 
-        metrics = {
-            "accuracy": accuracy,
-            "f1_macro": f1_macro,
-            "f1_weighted": f1_weighted,
-            "run_id": run.info.run_id,
-        }
-        with open(metrics_path, "w") as f:
-            json.dump(metrics, f, indent=2)
+    mlflow.log_metrics({
+        "accuracy": accuracy,
+        "f1_macro": f1_macro,
+        "f1_weighted": f1_weighted,
+    })
 
-        logger.info("Metrics: accuracy=%.4f f1_macro=%.4f f1_weighted=%.4f", accuracy, f1_macro, f1_weighted)
+    mlflow.sklearn.log_model(
+        pipeline,
+        artifact_path="model",
+        registered_model_name=model_params["name"],
+    )
+
+    mlflow.end_run()
+
+    metrics = {
+        "accuracy": accuracy,
+        "f1_macro": f1_macro,
+        "f1_weighted": f1_weighted,
+        "run_id": run.info.run_id,
+    }
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=2)
 
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     joblib.dump(pipeline, model_path)
@@ -128,6 +139,7 @@ def main() -> None:
     with open(version_file, "w") as f:
         f.write(run.info.run_id[:8])
 
+    logger.info("Metrics: accuracy=%.4f f1_macro=%.4f f1_weighted=%.4f", accuracy, f1_macro, f1_weighted)
     logger.info("Model saved to %s", model_path)
 
 

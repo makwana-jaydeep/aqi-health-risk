@@ -1,0 +1,34 @@
+groups:
+  - name: aqi_alerts
+    interval: 15s
+    rules:
+
+      - alert: HighErrorRate
+        expr: |
+          (rate(aqi_predictions_total[5m]) == 0)
+          or
+          (sum(rate(aqi_risk_tier_total[5m])) / rate(aqi_predictions_total[5m]) < 0.95)
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prediction error rate exceeded 5%"
+          description: "Error rate is above 5% for more than 1 minute."
+
+      - alert: DataDriftDetected
+        expr: aqi_drift_score > 0.05
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data drift detected in AQI features"
+          description: "KS drift score {{ $value }} exceeds threshold 0.05. Retraining required."
+
+      - alert: NoPredictionsReceived
+        expr: rate(aqi_predictions_total[10m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No predictions received in last 10 minutes"
+          description: "The backend may be down or receiving no traffic."

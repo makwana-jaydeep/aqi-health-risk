@@ -104,7 +104,28 @@ Returns a personalized risk tier classification.
   "total_predictions": "integer"
 }
 ```
+---
 
+### POST /api/v1/feedback
+
+**Description**: Logs ground truth labels for real-world performance decay tracking.
+
+**Request Body** (application/json):
+```json
+{
+  "city": "string",
+  "actual_risk": "integer (0 | 1 | 2)",
+  "predicted_risk": "integer (0 | 1 | 2)"
+}
+```
+
+**Response 200**:
+```json
+{"status": "logged"}
+```
+
+Ground truth records are appended to `/app/data/feedback_log.jsonl` for
+periodic analysis of real-world model performance decay.
 ---
 
 ### GET /metrics

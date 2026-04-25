@@ -5,7 +5,7 @@ from main import app
 
 client = TestClient(app)
 
-
+# methods to test model for health related things
 def test_health_endpoint_returns_ok():
     response = client.get("/api/v1/health")
     assert response.status_code == 200

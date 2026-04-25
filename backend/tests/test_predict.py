@@ -22,7 +22,7 @@ VALID_PAYLOAD = {
     "planned_activity": "moderate",
 }
 
-
+# methods to check the prediciton of the model 
 def test_predict_with_valid_payload_returns_200():
     with patch("api.routes.predict.ModelService.predict") as mock_predict:
         from models.schemas import PredictionResponse
@@ -77,3 +77,9 @@ def test_pipeline_status_returns_200():
     data = response.json()
     assert "drift_detected" in data
     assert "model_version" in data
+    
+def test_feedback_endpoint_returns_200():
+    payload = {"city": "Delhi", "actual_risk": 2, "predicted_risk": 1}
+    response = client.post("/api/v1/feedback", params=payload)
+    assert response.status_code == 200
+    assert response.json()["status"] == "logged"
